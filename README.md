@@ -26,10 +26,10 @@ Billed est une application de gestion de notes de frais pour les employés et le
 
 ## Lancement de l'application
 
-Pour lancer l'application en mode développement :
+Pour lancer l'application en local :
 
 ```
-npm run dev
+$ live-server
 ```
 
 L'application sera accessible à l'adresse : `http://127.0.0.1:8080/`
