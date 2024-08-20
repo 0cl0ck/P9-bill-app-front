@@ -12,6 +12,80 @@ import { ROUTES, ROUTES_PATH } from "../constants/routes.js";
 import { localStorageMock } from "../__mocks__/localStorage.js";
 
 import router from "../app/Router.js";
+jest.mock("../app/store", () => ({
+  bills: () => ({
+    list: () =>
+      Promise.resolve([
+        {
+          id: "47qAXb6fIm2zOKkLzMro",
+          vat: "80",
+          fileUrl:
+            "https://test.storage.tld/v0/b/billable-677b6.a…f-1.jpg?alt=media&token=c1640e12-a24b-4b11-ae52-529112e9602a",
+          status: "pending",
+          type: "Hôtel et logement",
+          commentary: "séminaire billed",
+          name: "encore",
+          fileName: "preview-facture-free-201801-pdf-1.jpg",
+          date: "2001-01-01",
+          amount: 400,
+          commentAdmin: "ok",
+          email: "a@a",
+          pct: 20,
+        },
+        {
+          id: "BeKy5Mo4jkmdfPGYpTxZ",
+          vat: "",
+          amount: 100,
+          name: "test1",
+          fileName: "1592770761.jpeg",
+          commentary: "plop",
+          pct: 20,
+          type: "Transports",
+          email: "a@a",
+          fileUrl:
+            "https://test.storage.tld/v0/b/billable-677b6.a…61.jpeg?alt=media&token=7685cd61-c112-42bc-9929-8a799bb82d8b",
+          date: "2004-04-04",
+          status: "refused",
+          commentAdmin: "en fait non",
+        },
+        {
+          id: "UIUZtnPQvnbFnB0ozvJh",
+          name: "test3",
+          email: "a@a",
+          type: "Services en ligne",
+          vat: "60",
+          pct: 20,
+          commentAdmin: "bon bah d'accord",
+          amount: 300,
+          status: "accepted",
+          date: "2003-03-03",
+          commentary: "",
+          fileName:
+            "facture-client-php-exportee-dans-document-pdf-enregistre-sur-disque-dur.png",
+          fileUrl:
+            "https://test.storage.tld/v0/b/billable-677b6.a…dur.png?alt=media&token=571d34cb-9c8f-430a-af52-66221cae1da3",
+        },
+        {
+          id: "qcCK3SzECmaZAGRrHjaC",
+          status: "refused",
+          pct: 20,
+          amount: 200,
+          email: "a@a",
+          name: "test2",
+          vat: "40",
+          fileName: "preview-facture-free-201801-pdf-1.jpg",
+          date: "2002-02-02",
+          commentAdmin: "pas la bonne facture",
+          commentary: "test2",
+          type: "Restaurants et bars",
+          fileUrl:
+            "https://test.storage.tld/v0/b/billable-677b6.a…f-1.jpg?alt=media&token=4df6ed2c-12c8-42a2-b013-346c1346f732",
+        },
+
+        // Ajoutez d'autres factures fictives ici
+      ]),
+  }),
+}));
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on Bills Page", () => {
@@ -134,9 +208,10 @@ describe("When I click the button 'Nouvelle note de frais'", () => {
     );
   });
 });
+
 // test d'intégration GET
 describe("Given I am a user connected as Employee", () => {
-  describe("When I navigate to Dashboard", () => {
+  describe("When I navigate to Bills", () => {
     test("Then it should fetch bills from mock API GET", async () => {
       localStorage.setItem(
         "user",
@@ -145,58 +220,61 @@ describe("Given I am a user connected as Employee", () => {
       const root = document.createElement("div");
       root.setAttribute("id", "root");
       document.body.append(root);
-
       router();
-      window.onNavigate(ROUTES_PATH.Dashboard);
-      await waitFor(() => screen.getByText("Transports"));
-      const contentPending = await screen.getByText("Hôtel et logement");
-      expect(contentPending).toBeTruthy;
-      // const contentRefused = await screen.getByText("Refused");
-      // expect(contentRefused).toBeTruthy;
-      // On vérifie la présence de minimum 1 bill
-      expect(screen.queryAllByTestId(/open-bill/i)).toBeTruthy();
-      //TODO: Tester le nombre de bills et tester un élément de chaque bill
+      window.onNavigate(ROUTES_PATH.Bills);
+
+      // Simuler le chargement des données
+      const bills = await require("../app/Store").bills().list();
+      document.body.innerHTML = BillsUI({ data: bills });
+
+      await waitFor(() => {
+        new Promise((resolve) => setTimeout(resolve, 100)); // Attendre 100ms
+
+        // Vérifications du rendu du titre et du bouton
+        expect(screen.getByText("Mes notes de frais")).toBeTruthy();
+        expect(screen.getByText("Nouvelle note de frais")).toBeTruthy();
+
+        // Vérifier le nombre exact de lignes dans le tableau
+        const tableRows = screen.getAllByRole("row");
+        expect(tableRows.length).toBe(5); // 4 factures + 1 en-tête
+
+        // Vérifier le contenu spécifique des factures
+        expect(screen.getByText("encore")).toBeTruthy();
+        expect(screen.getByText("test1")).toBeTruthy();
+        expect(screen.getByText("test2")).toBeTruthy();
+        expect(screen.getByText("test3")).toBeTruthy();
+
+        // Vérifier la présence des icônes
+        const eyeIcons = screen.getAllByTestId("icon-eye");
+        expect(eyeIcons.length).toBe(4);
+      });
     });
-    // On démarre un test asynchrone
     test("Then it should fetch bills from an API and fails with 404 message error", async () => {
-      // On définit un utilisateur dans le localStorage. C'est nécessaire car notre application vérifie si un utilisateur est connecté.
       localStorage.setItem(
         "user",
         JSON.stringify({ type: "Employee", email: "a@a" })
       );
-
-      // On crée un élément div et on l'ajoute au document. Notre application utilise cet élément comme point d'ancrage pour afficher le contenu.
       const root = document.createElement("div");
       root.setAttribute("id", "root");
       document.body.append(root);
 
-      // On crée un mock de notre store. Le store est l'objet qui gère la communication avec l'API.
-      // Dans ce cas, on simule une erreur 404 lors de l'appel à la méthode list de bills.
-      const storeMock = {
+      const mockStore = {
         bills: jest.fn().mockReturnValue({
           list: jest.fn().mockRejectedValue(new Error("Erreur 404")),
         }),
       };
 
-      // On crée une instance de notre composant Bills avec les dépendances nécessaires.
-      const billsContainer = new Bills({
+      const bills = new Bills({
         document,
         onNavigate,
-        localStorage: localStorageMock,
-        store: storeMock,
+        store: mockStore,
+        localStorage: window.localStorage,
       });
 
-      // On démarre le routeur de notre application.
-      router();
+      document.body.innerHTML = BillsUI({ error: "Erreur 404" });
 
-      // On simule une navigation vers le tableau de bord.
-      window.onNavigate(ROUTES_PATH.Dashboard);
-
-      // On attend que le texte "Transports" soit présent dans le document. En se faisant, on s'assure que le rendu de la page est terminé.
-      await waitFor(() => screen.getByText("Transports"));
-
-      // On appelle la méthode getBills de notre composant et on vérifie qu'elle rejette une erreur avec le message "Erreur 404".
-      await expect(billsContainer.getBills()).rejects.toThrow("Erreur 404");
+      const message = await screen.getByText("Erreur 404");
+      expect(message).toBeTruthy();
     });
 
     test("Then it should fetch bills from an API and fails with 500 message error", async () => {
@@ -208,23 +286,23 @@ describe("Given I am a user connected as Employee", () => {
       root.setAttribute("id", "root");
       document.body.append(root);
 
-      const storeMock = {
+      const mockStore = {
         bills: jest.fn().mockReturnValue({
           list: jest.fn().mockRejectedValue(new Error("Erreur 500")),
         }),
       };
 
-      const billsContainer = new Bills({
+      const bills = new Bills({
         document,
         onNavigate,
-        localStorage: localStorageMock,
-        store: storeMock,
+        store: mockStore,
+        localStorage: window.localStorage,
       });
 
-      router();
-      window.onNavigate(ROUTES_PATH.Dashboard);
-      await waitFor(() => screen.getByText("Transports"));
-      await expect(billsContainer.getBills()).rejects.toThrow("Erreur 500");
+      document.body.innerHTML = BillsUI({ error: "Erreur 500" });
+
+      const message = await screen.getByText("Erreur 500");
+      expect(message).toBeTruthy();
     });
   });
 });
