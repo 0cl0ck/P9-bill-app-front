@@ -249,6 +249,7 @@ describe("Given I am a user connected as Employee", () => {
         expect(eyeIcons.length).toBe(4);
       });
     });
+    // Test pour l'erreur 404
     test("Then it should fetch bills from an API and fails with 404 message error", async () => {
       localStorage.setItem(
         "user",
@@ -266,17 +267,22 @@ describe("Given I am a user connected as Employee", () => {
 
       const bills = new Bills({
         document,
-        onNavigate,
+        onNavigate: jest.fn(),
         store: mockStore,
         localStorage: window.localStorage,
       });
 
+      await expect(bills.getBills()).rejects.toThrow("Erreur 404");
+
+      // Simule l'affichage de l'erreur dans l'UI
       document.body.innerHTML = BillsUI({ error: "Erreur 404" });
 
-      const message = await screen.getByText("Erreur 404");
+      // Vérifie que le message d'erreur est affiché
+      const message = screen.getByText(/Erreur 404/);
       expect(message).toBeTruthy();
     });
 
+    // Test pour l'erreur 500
     test("Then it should fetch bills from an API and fails with 500 message error", async () => {
       localStorage.setItem(
         "user",
@@ -294,14 +300,19 @@ describe("Given I am a user connected as Employee", () => {
 
       const bills = new Bills({
         document,
-        onNavigate,
+        onNavigate: jest.fn(),
         store: mockStore,
         localStorage: window.localStorage,
       });
 
+      // Teste que la méthode getBills rejette avec l'erreur 500
+      await expect(bills.getBills()).rejects.toThrow("Erreur 500");
+
+      // Simule l'affichage de l'erreur dans l'UI
       document.body.innerHTML = BillsUI({ error: "Erreur 500" });
 
-      const message = await screen.getByText("Erreur 500");
+      // Vérifie que le message d'erreur est affiché dans le DOM
+      const message = screen.getByText(/Erreur 500/);
       expect(message).toBeTruthy();
     });
   });
